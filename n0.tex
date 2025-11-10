@@ -1,0 +1,187 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
+
+% ===== PACKAGES =====
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+% --- Packages for Layout Control ---
+\usepackage{placeins}     % Provides \FloatBarrier to control float placement
+\usepackage{stfloats}     % Allows floats* (like figure*) at the bottom of the page [b]
+\usepackage{booktabs}     % Provides \toprule, \midrule, \bottomrule for tables
+
+% A simple fix for placeholder references to avoid compilation errors
+\usepackage{filecontents}
+\begin{filecontents*}{references.bib}
+@inproceedings{Karri2010Intro,
+  title={Hardware Trojan threats: a survey},
+  author={Karri, Ramesh and Rajendran, Jeyavijayan and Rosenfeld, Kent and Tehranipoor, Mohammad},
+  booktitle={2010 IEEE international conference on computer design (ICCD)},
+  pages={7--1},
+  year={2010},
+  organization={IEEE}
+}
+@inproceedings{Basak2017Classification,
+    author = {Basak, Anabil and D'Silva, M. S. W. and Bhunia, Swarup},
+    title = {Hardware Trojans Classification for Gate-level Netlists Using Multi-layer Neural Networks},
+    booktitle = {2017 IEEE International Symposium on Hardware Oriented Security and Trust (HOST)},
+    year = {2017},
+    pages = {1-6}
+}
+@inproceedings{Koehler2023Tutorial,
+    author = {Koehler, Jael and Schellenberg, Florian and Hamdi, Say-T. S. and Sanad, Mohamed A. A.},
+    title = {Hardware Trojan Detection Using Machine Learning: A Tutorial},
+    journal = {ACM Transactions on Design Automation of Electronic Systems},
+    volume = {28},
+    number = {5},
+    pages = {1--32},
+    year = {2023}
+}
+@inproceedings{Hao2020StructuralFeatures,
+    author = {Hao, Y. and Zhang, J. and Li, J.},
+    title = {A Hardware Trojan Detection Method Based on Structural Features of Trojan and Host Circuits},
+    booktitle = {Journal of Physics: Conference Series},
+    volume = {1651},
+    number = {1},
+    pages = {012117},
+    year = {2020}
+}
+@article{Wecel2022GNN,
+    author = {Wecel, Gabriel and Sanad, Mohamed A. A. and Schellenberg, Florian},
+    title = {Hardware Trojan detection using graph neural networks},
+    journal = {arXiv preprint arXiv:2204.11431},
+    year = {2022}
+}
+@article{Li2024GATrojan,
+    author = {Li, Chen and Chen, Y. and Li, X.},
+    title = {GATrojan: An Efficient Gate-level Hardware Trojan Detection Approach Using Graph Attention Networks},
+    journal = {IEEE Transactions on Circuits and Systems I: Regular Papers},
+    year = {2024},
+    publisher = {IEEE}
+}
+@article{Al-Tawy2023BiGCN,
+    author = {Al-Tawy, Randa and Mohamed, Abdel-Hameed A. E. and Al-Hassani, Hussein M. K.},
+    title = {A fine-grained detection method for gate-level hardware Trojan based on bidirectional Graph Neural Networks},
+    journal = {Journal of King Saud University-Computer and Information Sciences},
+    volume = {35},
+    number = {7},
+    pages = {1--13},
+    year = {2023}
+}
+@inproceedings{Lin2017FocalLoss,
+    author = {Lin, Tsung-Yi and Goyal, Priya and Girshick, Ross and He, Kaiming and Dollár, Piotr},
+    title = {Focal Loss for Dense Object Detection},
+    booktitle = {2017 IEEE International Conference on Computer Vision (ICCV)},
+    year = {2017},
+    pages = {2980-2988}
+}
+\end{filecontents*}
+
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\title{Hardware Trojan Detection on Gate Level Netlist*\\
+{\footnotesize \textsuperscript{*}2025 CAD Contest Problem A}
+}
+
+\author{\IEEEauthorblockN{En-Ling Hsiung}
+\IEEEauthorblockA{\textit{Department of Computer Science} \\
+\textit{National Tsing Hua University}\\
+Hsinchu, Taiwan \\
+doo1222.tw@gmail.com}
+}
+
+
+\maketitle
+
+\FloatBarrier
+
+% =======================================================================
+%                      SECTION 3: PROPOSED METHODOLOGY
+% =======================================================================
+\section{Proposed Methodology}
+\label{sec:methodology}
+The proposed methodology for hardware trojan detection is designed as a multi-stage pipeline. The core components include (1) feature extraction from the circuit dataset, (2) a dual-model classification system, and (3) a final post-processing and prediction stage.
+
+\subsection{Feature Extraction}
+\label{sub:feature extraction}
+In our methodology, we represent each circuit as a graph where each gate is considered a node. For the gate-level analysis (and as the foundation for aggregated circuit-level features), we characterize every node $i$ with a 17-dimensional feature vector, $\mathbf{F}_{gate_i}$. This vector is designed to capture the node's functional, structural, and topological properties within the netlist.
+
+The components of this 17-dimensional vector are defined as follows:
+
+\begin{itemize}
+    \item \textbf{Gate Type (10 dimensions):} We use a one-hot encoding scheme to represent the logical function of the gate. This vector component identifies the gate's type, including NOT, BUF, AND, OR, XOR, NAND, NOR, XNOR, DFF, constant value.
+
+    \item \textbf{DFF Port Connectivity (5 dimensions):} A set of five binary flags indicating whether the gate is directly connected to a specific port of a D-type flip-flop (DFF). These features are:
+    \begin{itemize}
+        \item Connection to DFF `clk` clock port.  
+        \item Connection to DFF ``sn`` asynchronous set port.  
+        \item Connection to DFF ``rn`` asynchronous reset port.  
+        \item Connection to DFF ``q`` output port.
+        \item Connection to DFF ``d`` data port.
+    \end{itemize}
+    Each flag is 1 if a connection exists, and 0 otherwise.
+
+    \item \textbf{Distance to Primary Input (1 dimension):} A numerical value representing the topological distance from the current gate to the nearest Primary Input (PI) of the circuit.
+
+    \item \textbf{Distance to Primary Output (1 dimension):} A numerical value representing the topological distance from the current gate to the nearest Primary Output (PO) of the circuit.
+\end{itemize}
+
+This 17-dimensional vector $\mathbf{F}_{gate_i}$ serves as the direct input for our gate-level classifier (Model 2) and is used in aggregate form for the circuit-level classifier (Model 1).
+
+
+\subsection{Model Selection}
+Given that circuits are naturally represented as graphs (where gates are nodes and wires are edges), we employ Graph Neural Networks (GNNs) to learn representations that capture the complex topological relationships. We utilize a dual-model system, both based on the GraphSAGE architecture, to perform classification at two different granularities: circuit-level and gate-level.
+
+Both models share a similar core architecture: a multi-layer GNN with `SAGEConv` layers, `BatchNorm` for stabilization, a custom node-wise attention mechanism, and residual connections to improve training.
+
+\subsubsection{Model 1: Circuit-Level Classifier}
+The objective of this model is to classify the entire circuit graph as either "Trojaned" or "Trojan-Free". 
+
+The model processes the entire graph and uses `SAGEConv` layers enhanced with our attention mechanism to learn node features. After the final GNN layer, a \textbf{global mean pooling} operation aggregates all node embeddings into a single graph-level feature vector. This vector, representing the entire circuit, is then passed through a final Multi-Layer Perceptron (MLP) head to produce a binary classification.
+
+\subsubsection{Model 2: Gate-Level Classifier}
+The second model is a node classification GNN designed to predict whether each individual gate is "Trojan" or "Benign".
+
+It mirrors the circuit-level model's GNN architecture (SAGEConv, attention, and residuals) to compute a final feature embedding for every node. However, it \textbf{omits the global pooling layer}. Instead, a final MLP head is applied directly to each node's embedding independently. This produces a per-gate classification, effectively creating a "heat map" of potential trojan locations within the circuit.
+
+
+
+\subsection{Inference and Post-Processing}
+First, the 17-dimensional feature vectors are extracted for every gate in the circuit, as described in \autoref{sub:feature extraction]. These features are then fed into the two trained models:
+\begin{itemize}
+    \item Model 1 (Circuit-Level) produces a single prediction, $P_{circuit}$, indicating if the entire circuit is "Trojaned" or "Trojan-Free".
+    \item Model 2 (Gate-Level) produces a prediction $P_{gate_i}$ for each gate $i$, resulting in an initial list of suspected trojan gates.
+\end{itemize}
+
+\subsubsection{Neighbor Voting (Gate-Level Refinement)}
+The initial gate-level predictions are refined using a neighbor voting mechanism to reduce noise and isolated false positives. For each gate $i$, we examine the predictions of its immediate neighbors (nodes connected by an edge in the circuit graph).
+
+If more than half of the neighbors' predictions contradict the prediction for gate $i$, the prediction $P_{gate_i}$ is flipped (i.e., "Trojan" $\rightarrow$ "Benign" or "Benign" $\rightarrow$ "Trojan"). This process yields a refined list of trojan gates and their total count, $N_{trojan\_gates}$.
+
+\subsubsection{Final Decision Logic}
+Finally, a rule-based module combines the circuit-level prediction $P_{circuit}$ and the refined gate-level count $N_{trojan\_gates}$ to make a final declaration.
+
+Our system declares the circuit as \textbf{"Trojan-Free"} (Benign) if either of the following conditions is met:
+\begin{enumerate}
+    \item The circuit-level classifier (Model 1) predicts that the circuit is "Trojan-Free".
+    \item The total number of trojan gates found after neighbor voting ($N_{trojan\_gates}$) is less than 15.
+\end{enumerate}
+
+Conversely, the circuit is declared \textbf{"Trojaned"} (Malicious) \textit{only if} the circuit-level classifier predicts "Trojaned" \textit{and} the number of detected trojan gates is 15 or more. In this case, the list of gates from the refined gate-level model is reported as the location of the hardware trojan.
+
+
+\FloatBarrier
+
+\end{document}
