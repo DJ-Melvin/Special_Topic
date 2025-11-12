@@ -411,7 +411,24 @@ This section presents the performance of each framework and provides a comparati
 
 % --- RESULTS FOR METHOD A ---
 \subsection{Performance of Method A}
-(Please fill in the final Accuracy, Precision, Recall, and F1-Score for Method A here. You can use a table similar to the one in Method C.)
+\subsubsection{Official Competition Performance}
+Method A (Dual-GraphSAGE) performed exceptionally well, successfully identifying \textbf{all 20 Trojaned circuits} (100\% Recall) while only misclassifying 1 of the 10 clean circuits. This yields a final F1-Score of 97.6\% (Table~\ref{tab:competition_results_A}).
+
+\begin{table}[h!]
+    \centering
+    \caption{Method A: Final Circuit-Level Performance}
+    \label{tab:competition_results_A}
+    \begin{tabular}{lc}
+        \toprule
+        \textbf{Metric} & \textbf{Score} \\ \midrule
+        Accuracy      & 96.6\% \\
+        Precision     & 95.2\% \\
+        Recall (TPR)  & 100.0\% \\
+        \textbf{F1-Score}      & \textbf{97.6\%} \\ \bottomrule
+    \end{tabular}
+\end{table}
+\subsubsection{Gate-Level Detection Consistency}
+Gate-level analysis showed a high median F1-score of 0.817 across the 20 Trojan cases, indicating reliable localization. The final model achieved significant gains over its pre-tuning variant on challenging cases.
 
 % --- RESULTS FOR METHOD B ---
 \subsection{Performance of Method B}
@@ -479,7 +496,7 @@ Here, we compare the four proposed methods (A, B, C, and D) across several key d
         \toprule
         \textbf{Method} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} \\
         \midrule
-        A: Dual-GraphSAGE & 0.9391 & 0.5386 & 0.952 & 0.688 \\
+        A: Dual-GraphSAGE & 96.6\% & 95.2\% & 100.0\% & 97.6\% \\
         B: Dual-Branch GNN & (Fill in) & (Fill in) & (Fill in) & (Fill in) \\
         C: BiGCN w/ Loss & 90.0\% & 87.0\% & 100.0\% & 93.0\% \\
         D: BiGCN w/ Aug & (Fill in) & (Fill in) & (Fill in) & (Fill in) \\
