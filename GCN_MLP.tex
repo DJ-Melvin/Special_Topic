@@ -1,0 +1,121 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+% ===== PACKAGES (Standard set for IEEE) =====
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\title{Hardware Trojan Detection via BiGCN-TIF and Multi-Level Feature Fusion\\
+{\footnotesize \textsuperscript{*}2025 CAD Contest Problem A}}
+
+\author{\IEEEauthorblockN{Tzu-Chi Huang}
+\IEEEauthorblockA{\textit{Department of Computer Science} \\
+\textit{National Tsing Hua University}\\
+Hsinchu, Taiwan \\
+zchuang0203@gmail.com}
+\and
+\IEEEauthorblockN{Chi-Lun Chen}
+\IEEEauthorblockA{\textit{Department of Computer Science} \\
+\textit{National Tsing Hua University}\\
+Hsinchu, Taiwan \\
+chilunchen28@gmail.com}
+}
+
+\maketitle
+
+% =======================================================================
+%                      SECTION 3: PROPOSED METHODOLOGY
+% =======================================================================
+\section{Proposed Methodology}
+\label{sec:methodology}
+Our approach, BiGCN-TIF (Bidirectional Graph Convolutional Network with Topology and Information Fusion), aims to detect and localize hardware Trojans in gate-level netlists by integrating structural graph analysis and GNNs. The system includes graph construction, model training, and inference post-processing.
+
+\subsection{Graph Construction and Features}
+\label{sub:features}
+The Verilog netlist is converted into a directed graph where each gate is a node, and signal propagation forms directed edges.
+
+\subsubsection{Bidirectional Graph}
+To enable bidirectional message passing, two edge index tensors are generated: Forward Edges ($\texttt{edge\_index\_fw}$, driver to load) and Backward Edges ($\texttt{edge\_index\_bw}$, load to driver).
+
+\subsubsection{Multi-Level Feature Extraction}
+We extract multi-level features for each node, resulting in a **41-dimensional feature vector** $\mathbf{x}$:
+\begin{itemize}
+    \item \textbf{Gate-Level:} Gate type one-hot encoding, IO flags.
+    \item \textbf{Structural/Topological:} Fanin/fanout counts within two hops, local depth, DFF presence, and distance features (to PI, PO, DFF).
+    \item \textbf{Simulation Statistics:} Logic-1 probability and toggle frequency from Monte-Carlo simulation.
+\end{itemize}
+We also introduce **subgraph-level contextual features** $\mathbf{Z}_s$ by grouping gates into Weakly Connected Components (WCCs) or DFF-based segments.
+
+\subsection{Dual-Branch GNN Architecture}
+The architecture combines node-level and subgraph-level representations.
+
+\subsubsection{Node Branch (BiGCN-TIF)}
+This branch consists of three stacked $\text{BiGCN\_TIF\_Layer}$ modules. Each layer uses a pair of $\text{GCNConv}$ operators on the forward and backward edge indices. The layer outputs are concatenated to form a comprehensive 192-dimensional node structural representation $\mathbf{h}_{\text{node}}$.
+
+\subsubsection{Subgraph Branch}
+This branch uses a 2-layer Feed-Forward Network (MLP) to encode the statistical subgraph features $\mathbf{Z}_s$ into a 64-dimensional latent space. These embeddings are then aligned to all nodes to form the contextual representation $\mathbf{z}_{\text{node}}$.
+
+\subsubsection{Fusion and Classification}
+The 192-dim $\mathbf{h}_{\text{node}}$ and 64-dim $\mathbf{z}_{\text{node}}$ are **concatenated into a 256-dimensional vector**. This fused vector is classified by a two-layer MLP head to produce outputs for the \{Free, Trojan\} classes.
+
+\subsection{Inference and Post-Processing}
+The model's outputs undergo topology-aware filters to enhance spatial consistency and robustness.
+\begin{itemize}
+    \item \textbf{Neighbor Consistency Filter:} Resets a predicted Trojan node to non-Trojan if it has no other Trojan neighbors within one hop.
+    \item \textbf{Small-Group Pruning:} Connected groups of predicted Trojan gates with size $< 5$ are discarded.
+    \item \textbf{Trojan Count Enforcement:} If the total predicted Trojan count is below **10**, all predictions are reset to zero, classifying the design as Trojan-Free.
+\end{itemize}
+
+% =======================================================================
+%                      SECTION 4: EXPERIMENT
+% =======================================================================
+\section{Experiment Configuration}
+\subsection{Dataset Generation}
+The final dataset consists of approximately **2,180 netlists** ($\approx 2,080$ Trojan-inserted and $100$ Trojan-free). Two strategies were used for Trojaned data generation:
+\begin{enumerate}
+    \item \textbf{RTL-Level Injection:} Adjusting parameters on official RTL Trojan templates and synthesizing them using commercial EDA tools, Cadence GENUS and Synopsys Design Compiler (DC).
+    \item \textbf{Logic-Level Augmentation:} Performing structural transformations on public benchmark cases to enhance diversity.
+\end{enumerate}
+
+\subsection{Training Procedure}
+Given the severe class imbalance, **Focal Loss** is employed:
+$$
+\text{FL}(p_t) = -\alpha(1-p_t)^\gamma \log(p_t)
+$$
+where $\alpha \in [0.5, 0.8]$ and $\gamma=2$.
+\begin{itemize}
+    \item \textbf{Optimizer:} Adam.
+    \item \textbf{Learning Rate:} $8 \times 10^{-5}$.
+    \item \textbf{Early Stopping:} Patience of 100 epochs.
+    \item \textbf{Batch Size:} Single-graph batch size ($\text{batch size}=1$).
+\end{itemize}
+
+\subsection{Evaluation Metrics}
+The final evaluation employs the comprehensive contest-style metric:
+$$
+\text{Total Score} = \text{Classification Score} + \text{F1 Bonus}
+$$
+The F1 Score, Precision, and Recall are used for localization, while Accuracy is used for overall classification.
+
+% =======================================================================
+%                      SECTION 5: RESULT
+% =======================================================================
+\section{Result Summary}
+The total score achieved was $\mathbf{121.8891}$ across the cases, demonstrating robust performance on both classification and localization tasks.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references} % Assumes a references.bib file exists
+
+\end{document}
