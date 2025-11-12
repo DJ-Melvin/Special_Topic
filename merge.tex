@@ -111,25 +111,23 @@ likevin1022@gmail.com}
 Hsinchu, Taiwan \\
 zchuang0203@gmail.com}
 \and
+\IEEEauthorblockN{Chi-Lun Chen}
+\IEEEauthorblockA{\textit{Department of Computer Science} \\
+\textit{National Tsing Hua University}\\
+Hsinchu, Taiwan \\
+chilunchen28@gmail.com}
+\and
 \IEEEauthorblockN{En-Ling Hsiung}
 \IEEEauthorblockA{\textit{Department of Computer Science} \\
 \textit{National Tsing Hua University}\\
 Hsinchu, Taiwan \\
 doo1222.tw@gmail.com}
 \and
-
-\and
 \IEEEauthorblockN{Tsai-Yen Hsieh}
 \IEEEauthorblockA{\textit{Department of Computer Science} \\
 \textit{National Tsing Hua University}\\
 Hsinchu, Taiwan \\
 hihahanaisme@gmail.com}
-\and
-\IEEEauthorblockN{Chi-Lun Chen}
-\IEEEauthorblockA{\textit{Department of Computer Science} \\
-\textit{National Tsing Hua University}\\
-Hsinchu, Taiwan \\
-chilunchen28@gmail.com}
 }
 
 \maketitle
@@ -411,24 +409,7 @@ This section presents the performance of each framework and provides a comparati
 
 % --- RESULTS FOR METHOD A ---
 \subsection{Performance of Method A}
-\subsubsection{Official Competition Performance}
-Method A (Dual-GraphSAGE) performed exceptionally well, successfully identifying \textbf{all 20 Trojaned circuits} (100\% Recall) while only misclassifying 1 of the 10 clean circuits. This yields a final F1-Score of 97.6\% (Table~\ref{tab:competition_results_A}).
-
-\begin{table}[h!]
-    \centering
-    \caption{Method A: Final Circuit-Level Performance}
-    \label{tab:competition_results_A}
-    \begin{tabular}{lc}
-        \toprule
-        \textbf{Metric} & \textbf{Score} \\ \midrule
-        Accuracy      & 96.6\% \\
-        Precision     & 95.2\% \\
-        Recall (TPR)  & 100.0\% \\
-        \textbf{F1-Score}      & \textbf{97.6\%} \\ \bottomrule
-    \end{tabular}
-\end{table}
-\subsubsection{Gate-Level Detection Consistency}
-Gate-level analysis showed a high median F1-score of 0.817 across the 20 Trojan cases, indicating reliable localization. The final model achieved significant gains over its pre-tuning variant on challenging cases.
+(Please fill in the final Accuracy, Precision, Recall, and F1-Score for Method A here. You can use a table similar to the one in Method C.)
 
 % --- RESULTS FOR METHOD B ---
 \subsection{Performance of Method B}
@@ -478,8 +459,25 @@ Gate-level analysis showed a high median F1-score of 0.688 across the 20 Trojan 
 
 % --- RESULTS FOR METHOD D (NEW) ---
 \subsection{Performance of Method D}
-Method D demonstrated strong performance through its data augmentation strategy and specialized loss function. The augmentation process successfully expanded the training dataset, improving model generalization across different circuit topologies. The Weighted Focal Loss effectively addressed the 1:8 class imbalance, maintaining high recall while controlling false positives.
-(Please fill in specific metrics when available.)
+\subsubsection{Official Competition Performance}
+Method D (BiGCN w/ Augmentation) achieved strong circuit-level classification with \textbf{93.3\% accuracy} (28 out of 30 circuits correctly classified). At the gate-level localization across 20 trojaned circuits, the method achieved a precision of 88.3\% and recall of 78.6\%, yielding an F1-Score of 80.5\% (Table~\ref{tab:competition_results_D}).
+
+\begin{table}[h!]
+    \centering
+    \caption{Method D: Final Performance}
+    \label{tab:competition_results_D}
+    \begin{tabular}{lc}
+        \toprule
+        \textbf{Metric} & \textbf{Score} \\ \midrule
+        Circuit Accuracy & 93.3\% \\
+        Gate Precision (avg) & 88.3\% \\
+        Gate Recall (avg) & 78.6\% \\
+        \textbf{Gate F1-Score (avg)} & \textbf{80.5\%} \\
+        Total Score & 74.104 \\ \bottomrule
+    \end{tabular}
+\end{table}
+
+The data augmentation strategy successfully improved model generalization across diverse circuit topologies. The Weighted Focal Loss with threshold optimization effectively balanced precision and recall at the gate level, demonstrating competitive performance across various trojan patterns.
 
 % --- NEW COMPARATIVE ANALYSIS SECTION ---
 \subsection{Comparative Analysis}
@@ -496,10 +494,10 @@ Here, we compare the four proposed methods (A, B, C, and D) across several key d
         \toprule
         \textbf{Method} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} \\
         \midrule
-        A: Dual-GraphSAGE & 96.6\% & 95.2\% & 100.0\% & 97.6\% \\
+        A: Dual-GraphSAGE & 96.6\% & 95.2\% & 100\% & 97.6\% \\
         B: Dual-Branch GNN & (Fill in) & (Fill in) & (Fill in) & (Fill in) \\
-        C: BiGCN w/ Loss & 90.0\% & 87.0\% & 100.0\% & 93.0\% \\
-        D: BiGCN w/ Aug & (Fill in) & (Fill in) & (Fill in) & (Fill in) \\
+        C: BiGCN w/ Loss & 90.0\% & 87.0\% & 100\% & 93.0\% \\
+        D: BiGCN w/ Aug & 93.3\% & 88.3\% & 78.6\% & 80.5\% \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -527,7 +525,7 @@ In this paper, we conducted a comprehensive study on detecting hardware Trojans 
 
 Our experiments, conducted on the 2025 CAD Contest dataset, demonstrate the effectiveness of GNNs for this task. The comparative analysis (Section~\ref{sec:comparative_analysis}) highlights the critical impact of choices in feature engineering, model architecture, loss function, and post-processing. Method C, for instance, achieved a perfect recall of 100\% and a final F1-Score of 93.0\% on the blind test set, validating its approach to imbalance and feature selection. The ablation studies scientifically confirmed the contribution of each component.
 
-This work not only presents five viable solutions to the HT detection problem but also provides a comparative analysis that offers valuable insights into the strengths and weaknesses of different design choices. Future work could involve creating hybrid models that combine the most effective components from each of these four approaches, or applying this methodology to a wider range of public benchmarks.
+This work not only presents four viable solutions to the HT detection problem but also provides a comparative analysis that offers valuable insights into the strengths and weaknesses of different design choices. Future work could involve creating hybrid models that combine the most effective components from each of these four approaches, or applying this methodology to a wider range of public benchmarks.
 
 \section*{Acknowledgment}
 The authors would like to thank the organizers of the 2025 CAD Contest for providing the challenging problem and dataset.
