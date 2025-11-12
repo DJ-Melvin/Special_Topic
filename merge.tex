@@ -97,8 +97,18 @@
 {\footnotesize \textsuperscript{*}2025 CAD Contest Problem A}
 }
 
+\makeatletter % changes the catcode of @ to 11
+\newcommand{\linebreakand}{%
+  \end{@IEEEauthorhalign}
+  \hfill\mbox{}\par
+  \mbox{}\hfill\begin{@IEEEauthorhalign}
+}
+\makeatother % changes the catcode of @ back to 12
+
+
 % ===== MERGED AUTHORS =====
 \author{
+%\linebreakand
 \IEEEauthorblockN{Yan-Cheng Li}
 \IEEEauthorblockA{\textit{Department of Computer Science} \\
 \textit{National Tsing Hua University}\\
@@ -117,6 +127,8 @@ zchuang0203@gmail.com}
 Hsinchu, Taiwan \\
 chilunchen28@gmail.com}
 \and
+\linebreakand
+
 \IEEEauthorblockN{En-Ling Hsiung}
 \IEEEauthorblockA{\textit{Department of Computer Science} \\
 \textit{National Tsing Hua University}\\
@@ -128,6 +140,12 @@ doo1222.tw@gmail.com}
 \textit{National Tsing Hua University}\\
 Hsinchu, Taiwan \\
 hihahanaisme@gmail.com}
+\and
+\IEEEauthorblockN{Li-Heng Yang}
+\IEEEauthorblockA{\textit{Department of Computer Science} \\
+\textit{National Tsing Hua University}\\
+Hsinchu, Taiwan \\
+steven29061389@gmail.com}
 }
 
 \maketitle
