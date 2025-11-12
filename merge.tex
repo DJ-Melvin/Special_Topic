@@ -204,6 +204,16 @@ Early ML methods relied on handcrafted features \cite{Hao2020StructuralFeatures}
 % =======================================================================
 \section{Proposed Methodologies}
 \label{sec:methodologies}
+
+All four methods presented in this work adhere to the expected framework architecture provided by the 2025 CAD Contest organizers. This standardized framework ensures a fair comparison across different approaches while allowing sufficient flexibility for methodological innovation. Figure~\ref{fig:expected_framework} illustrates the official framework structure that guides the development of each method.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.9\linewidth]{figures/expected_framework.png}
+\caption{Expected framework architecture provided by 2025 CAD Contest organizers for Hardware Trojan detection.}
+\label{fig:expected_framework}
+\end{figure}
+
 We developed and explored four distinct GNN-based frameworks for hardware Trojan detection. Each method is detailed below.
 
 % --- METHOD A (From n0.tex) ---
@@ -297,7 +307,7 @@ We explored multiple architectures, including GCN, GraphSAGE, and a hybrid bidir
 \subsubsection{Graph Representation and Architecture}
 We represent the netlist as a graph $G=(V, E)$ where nodes $v \in V$ are gates. For each node, we extract an 18-dimensional feature vector $x_v$ (detailed in Section~\ref{sec:feature_engineering_C}). We define forward edges $E_{fw}$ (signal flow) and backward edges $E_{bw}$ (reverse connections).
 
-Our model, \texttt{BiGCN-TIF}, stacks three bidirectional GCN layers, processing forward and backward graphs in parallel and fusing the results. A key feature is the dense concatenation of outputs from all intermediate layers, $H_{final} = [H^{(1)} \Vert H^{(2)} \Vert H^{(3)}]$, allowing the final classifier to access features from multiple abstraction levels.
+Our model, \texttt{BiGCN-TIF}, stacks three bidirectional GCN layers, processing forward and backward graphs in parallel and fusing the results. A key feature is the dense concatenation of outputs from all intermediate layers, \[ H_{final} = [H^{(1)} \Vert H^{(2)} \Vert H^{(3)}], \] allowing the final classifier to access features from multiple abstraction levels.
 
 \subsubsection{Training and Post-Processing}
 To address class imbalance, we propose a \textbf{Threshold-Aware Focal Loss}, building upon Focal Loss \cite{Lin2017FocalLoss} by adding a dynamic weight for hard-to-classify examples near the decision threshold.
@@ -517,9 +527,7 @@ The data augmentation strategy successfully improved model generalization across
 % --- NEW COMPARATIVE ANALYSIS SECTION ---
 \subsection{Comparative Analysis}
 \label{sec:comparative_analysis}
-(This is the most critical new section. You must fill this in with your final data. I have provided the structure.)
-
-Here, we compare the four proposed methods (A, B, C, and D) across several key dimensions based on their respective performance.
+Here, we compare the four proposed methods (A, B, C, and D) across several key dimensions based on their respective performance. It is important to note that the primary metrics for Methods A and C are circuit-level classification scores, whereas the reported Precision, Recall, and F1-Score for Method D are gate-level averages, making a direct comparison of those specific values challenging. Method B's detailed metrics were not available for this comparison.
 
 \begin{table}[h!]
     \centering
@@ -530,24 +538,25 @@ Here, we compare the four proposed methods (A, B, C, and D) across several key d
         \textbf{Method} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} \\
         \midrule
         A: Dual-GraphSAGE & 96.6\% & 95.2\% & 100\% & 97.6\% \\
-        B: Dual-Branch GNN & (Fill in) & (Fill in) & (Fill in) & (Fill in) \\
+        B: Dual-Branch GNN & N/A & N/A & N/A & N/A \\
         C: BiGCN w/ Loss & 90.0\% & 87.0\% & 100\% & 93.0\% \\
-        D: BiGCN w/ Aug & 93.3\% & 88.3\% & 78.6\% & 80.5\% \\
+        D: BiGCN w/ Aug & 93.3\% & 88.3\%* & 78.6\%* & 80.5\%* \\
         \bottomrule
+        \multicolumn{5}{l}{\footnotesize{*Gate-level average scores, not circuit-level.}}
     \end{tabular}
 \end{table}
 
 \paragraph{Analysis of Feature Engineering}
-(Fill in your analysis here. Compare the effectiveness of the 17-dim (Method A), 41-dim (Method B), 18-dim (Method C), and 30-dim (Method D) feature sets. Did the inclusion of simulation statistics (Method B) provide a noticeable advantage over the purely structural features of Methods A and C?)
+The methods employed diverse feature engineering strategies. Method B used the most extensive feature set ($41$-dim), uniquely incorporating simulation statistics, which could capture dynamic properties at the cost of significant preprocessing overhead. In contrast, Methods A, C, and D relied on purely static and topological features. Method A achieved the highest F1-score with the most concise feature set ($17$-dim), suggesting that a minimal, well-chosen set of topological features was highly effective and potentially less prone to overfitting on this dataset. Method C's data-driven approach ($18$-dim) targeted known anomaly indicators (e.g., \texttt{has\_tied\_inputs}), reflecting a blend of expert knowledge and statistical analysis. Method D ($30$-dim) automated the discovery of important nodes through graph centrality metrics like PageRank, offering a scalable alternative to manual feature selection.
 
 \paragraph{Analysis of Model Architecture}
-(Fill in your analysis here. Discuss the trade-offs between the four architectures. Was the dual-model system of Method A (circuit-level + gate-level) more effective at separating tasks? How did the dual-branch fusion (Method B) compare to the dense concatenation of intermediate layers (Method C)?)
+The architectural choices reveal different philosophies. Method A's dual-model system, which separates circuit-level ("if") and gate-level ("where") classification, proved highly effective. This decoupling likely contributed to its superior precision by requiring two distinct forms of confirmation. Methods B, C, and D employed single, unified models for node classification. Method B's dual-branch fusion and Method C's dense concatenation of intermediate layers are both powerful techniques for creating rich, multi-scale representations. Method D's hybrid of SAGEConv and GATConv layers attempted to balance neighborhood sampling with attention. The success of Method A's simpler, decoupled architecture suggests that for this problem, task-specific models may outperform a single, complex one.
 
 \paragraph{Analysis of Post-Processing}
-(Fill in your analysis here. Compare the four distinct post-processing strategies. Method A used neighbor voting and a threshold of 15. Method B used a 3-step filter (consistency, small-group pruning, threshold 10). Method C used a simple count threshold of 20. Method D employed threshold optimization every 5 epochs. Which provided the best balance between reducing false positives (Precision) and not harming true positives (Recall)?)
+All frameworks confirmed the criticality of post-processing to refine raw predictions and reduce false positives. The strategies varied in complexity. Method B employed the most sophisticated, topology-aware filter (consistency, group size, and count), making it theoretically robust. Methods A and C used simpler Trojan gate count thresholds (15 and 20, respectively). Method C's higher threshold (20) may explain its lower precision (87.0\%) compared to Method A (95.2\%), as it is more aggressive in classifying circuits as benign, leading to more false positives among the clean circuits (3 vs. 1). Method D's strategy of dynamically optimizing the decision threshold on a validation set represents a more standard and data-driven machine learning practice, reducing the reliance on hand-tuned heuristics.
 
 \paragraph{Analysis of Imbalance Handling}
-(Fill in your analysis here. Method C explicitly used a `Threshold-Aware Focal Loss`, while Method B used a standard `Focal Loss`, and Method D used `Weighted Focal Loss`. Based on the results, how critical were these custom loss functions in achieving high recall?)
+All methods successfully addressed the severe class imbalance, which was crucial for achieving high recall. Methods B, C, and D all used variants of Focal Loss. Method C's novel `Threshold-Aware Focal Loss` and Method D's `Weighted Focal Loss` with balanced batching demonstrate advanced strategies to force the model to focus on minority-class examples. Notably, Methods A and C both achieved a perfect 100\% circuit-level recall. Method A accomplished this without a custom loss function, relying instead on extensive data augmentation and its dual-model architecture. This implies that architectural design and data volume can be as effective as a specialized loss function in overcoming class imbalance.
 
 \FloatBarrier
 % =======================================================================
@@ -564,6 +573,12 @@ This work not only presents four viable solutions to the HT detection problem bu
 
 \section*{Acknowledgment}
 The authors would like to thank the organizers of the 2025 CAD Contest for providing the challenging problem and dataset.
+
+\section*{Team Collaboration and Competition Results}
+This work represents a collaborative effort by six independent students participating in the 2025 CAD Contest (Problem A: Hardware Trojan Detection on Gate Level Netlist). Each team member developed and submitted their own GNN-based methodology. To ensure coherence and foster knowledge sharing, the team conducted weekly meetings throughout the competition period to discuss progress, share insights, and collectively analyze the strengths and weaknesses of each approach.
+
+As a result of these collaborative efforts and individual innovations, the team achieved outstanding recognition at the 2025 CAD Contest. The four methodologies presented in this paper collectively secured one High Distinction Award and four Honorable Mentions in the domestic competition category, demonstrating the effectiveness of diverse GNN-based approaches and the value of systematic comparative analysis in solving hardware security challenges.
+
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
