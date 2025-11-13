@@ -214,7 +214,7 @@ All four methods presented in this work adhere to the expected framework archite
 \label{fig:expected_framework}
 \end{figure}
 
-We developed and explored four distinct GNN-based frameworks for hardware Trojan detection. Each method is detailed below.
+We developed and explored five distinct GNN-based frameworks for hardware Trojan detection. Each method is detailed below.
 
 % --- METHOD A (From n0.tex) ---
 \subsection{Method A: Dual-Model Classification with GraphSAGE}
@@ -333,6 +333,31 @@ The model employs a 4-layer BiGCN alternating between SAGEConv and GATConv opera
 We use Weighted Focal Loss with parameters $\alpha=0.111$, $\gamma=2.0$, and positive class weight 8.0 to handle the 1:8 class imbalance. AdamW optimizer with OneCycleLR scheduling and balanced batch creation (2:1 trojan:clean ratio) are employed. The decision threshold is optimized on validation data every 5 epochs.
 
 \FloatBarrier
+% --- METHOD E (NEW - From Heng) ---
+\subsection{Method E: Bidirectional GraphSAGE-LSTM with Data Augmentation and Weighted Cross-Entropy} 
+\label{sec:method_E} 
+Our approach addresses hardware Trojan detection through systematic data augmentation combined with a novel Bidirectional GraphSAGE-LSTM architecture and class-weighted loss functions. 
+
+\subsubsection{Data Augmentation Strategy} 
+We implement a comprehensive Trojan insertion methodology to expand the limited training dataset. Our augmentation process parses Trojan definitions from text files to extract gate-level components, which are then strategically inserted into clean benchmark circuits with unique naming (`HT\_'' prefix) to avoid conflicts. The augmentation randomly selects replacement ratios (typically 20\% for Trojan gates and 20\% for naive replacements) to generate diverse circuit variants, creating approximately 8-12 augmented circuits per original design, significantly expanding the training corpus. 
+
+\subsubsection{Feature Extraction} 
+We extract a comprehensive 21-dimensional feature vector capturing both structural and topological characteristics including graph centrality metrics (degree centrality, betweenness centrality, clustering coefficient), gate connectivity patterns (number of inputs/outputs), node type encoding (is\_input, is\_output, is\_gate), gate family one-hot encoding for 9 gate types (AND, OR, NAND, NOR, NOT, BUF, XOR, XNOR, DFF), and distance-based features (PI: shortest path to nearest input port, PO: shortest path to nearest output port). Selected features undergo normalization to ensure stable training convergence. 
+
+\subsubsection{Model Architecture} 
+The model employs a 3-layer Bidirectional GraphSAGE-LSTM architecture with 256 hidden channels. The bidirectional design processes graph information in both forward and reverse edge directions using separate SAGEConv layers, concatenating the resulting embeddings (512 dimensions) before applying ReLU activation and 20\% dropout. Layer-wise embeddings are sequentially fed into an LSTM network to capture temporal dependencies across graph convolution layers. The final MLP classifier includes residual connections and dropout regularization for robust prediction. The complete pipeline framework is illustrated in Figure~\ref{fig:graphSAGE_framework}. 
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/graphSAGE_framework.png}
+    \caption{Bidirectional GraphSAGE-LSTM architecture framework for Method E showing the flow from input features through bidirectional GraphSAGE layers, LSTM processing, and final classification.}
+    \label{fig:graphSAGE_framework}
+\end{figure}
+
+\subsubsection{Training Strategy} 
+We address the severe class imbalance (approximately 1:50 normal:Trojan ratio) using weighted Cross-Entropy loss with class weights [1.0, 50.0]. The Adam optimizer with learning rate 0.001 trains for 1500 epochs with batch size 1. Our training pipeline includes comprehensive validation using both accuracy and F1-score metrics, with NaN loss detection for numerical stability. The model leverages CUDA acceleration when available and implements early convergence monitoring to prevent overfitting. 
+
+\FloatBarrier
 % =======================================================================
 %               SECTION 4: EXPERIMENTAL SETUP
 % =======================================================================
@@ -428,6 +453,17 @@ Starting from 20 original trojaned and 10 clean circuits, we generated hundreds 
 Training employed AdamW optimizer with initial learning rate $10^{-4}$, weight decay $5 \times 10^{-5}$, and OneCycleLR scheduler (max LR $10^{-3}$, 30\% warmup). Batch size was 64 with 2:1 trojan:clean circuit ratio for balance. The model was trained for 60 epochs with gradient clipping at norm 1.0. Decision threshold was optimized every 5 epochs on validation data to maximize F1 score.
 
 \FloatBarrier
+
+% --- SETUP FOR METHOD E (NEW) ---
+\subsection{Setup for Method E}
+\subsubsection{Dataset Generation}
+Starting from the original circuits, we generated augmented training data through systematic Trojan insertion methodology. Our augmentation process parsed Trojan definitions from text files and inserted gate-level components into clean benchmark circuits with ``HT\_'' prefix naming. Replacement ratios of 20\% for Trojan gates and 20\% for naive replacements created diverse circuit variants, generating approximately 8-12 augmented circuits per original design to significantly expand the training corpus.
+
+\subsubsection{Training Configuration}
+Training employed Adam optimizer with learning rate $10^{-3}$ for 1500 epochs. Batch size was 1 with graph-level processing due to the nature of circuit-level predictions. The model used 256 hidden channels across 3 GraphSAGE layers with 20\% dropout for regularization. Class imbalance (1:50 normal:Trojan ratio) was addressed using weighted Cross-Entropy loss with class weights [1.0, 50.0]. Training included comprehensive validation using both accuracy and F1-score metrics, with NaN loss detection for numerical stability and CUDA acceleration when available.
+
+\FloatBarrier
+
 % =======================================================================
 %               SECTION 5: RESULTS AND ANALYSIS
 % =======================================================================
@@ -540,10 +576,37 @@ Method D (BiGCN w/ Augmentation) achieved strong circuit-level classification wi
 
 The data augmentation strategy successfully improved model generalization across diverse circuit topologies. The Weighted Focal Loss with threshold optimization effectively balanced precision and recall at the gate level, demonstrating competitive performance across various trojan patterns.
 
+% --- RESULTS FOR METHOD E (NEW) ---
+\subsection{Performance of Method E}
+\subsubsection{Official Competition Performance}
+Method E (Bidirectional GraphSAGE-LSTM w/ Augmentation) 
+achieved robust circuit-level classification with 83.33\% accuracy (25 out of 30 circuits correctly classified)
+and 90.00\% Recall. 
+
+\begin{table}[h!]
+    \centering
+    \caption{Method E: Final Performance}
+    \label{tab:competition_results_E}
+    \begin{tabular}{lc}
+        \toprule
+        \textbf{Metric} & \textbf{Score} \\ \midrule
+        Accuracy & 83.33\% \\
+        Precision & 85.71\% \\
+        Recall (TPR) & 90.00\% \\
+        \textbf{F1-Score} & \textbf{87.80\%} \\\bottomrule
+    \end{tabular}
+\end{table}
+
+\subsubsection{Gate-Level Detection Consistency}
+Gate-level analysis showed a median F1-score of 0.62 across the 20 Trojan cases. 
+Among cases where detection was attempted, the method achieved varying performance with the best case reaching an F1-score of 0.92. The bidirectional GraphSAGE-LSTM architecture demonstrated particular effectiveness on certain Trojan patterns, while facing challenges with detection sensitivity in other cases, highlighting areas for future model refinement.
+
+% The bidirectional GraphSAGE-LSTM architecture with data augmentation strategy successfully captured both forward and backward graph dependencies for improved model generalization across diverse circuit topologies. The weighted Cross-Entropy loss with class weights [1.0, 50.0] effectively addressed severe class imbalance, while the LSTM component captured temporal dependencies across graph convolution layers, demonstrating competitive performance in hardware Trojan detection.
+
 % --- NEW COMPARATIVE ANALYSIS SECTION ---
 \subsection{Comparative Analysis}
 \label{sec:comparative_analysis}
-Here, we compare the four proposed methods (A, B, C, and D) across several key dimensions based on their respective performance. It is important to note that the primary metrics for Methods A, B and C are circuit-level classification scores, whereas the reported Precision, Recall, and F1-Score for Method D are gate-level averages, making a direct comparison of those specific values challenging.
+Here, we compare the five proposed methods (A, B, C, D and E) across several key dimensions based on their respective performance. It is important to note that the primary metrics for Methods A, B, C and E are circuit-level classification scores, whereas the reported Precision, Recall, and F1-Score for Method D are gate-level averages, making a direct comparison of those specific values challenging.
 
 \begin{table}[h!]
     \centering
@@ -557,22 +620,23 @@ Here, we compare the four proposed methods (A, B, C, and D) across several key d
         B: Dual-Branch GNN & 96.7\% & 100\% & 95\% & 97.4\% \\
         C: BiGCN w/ Loss & 90.0\% & 87.0\% & 100\% & 93.0\% \\
         D: BiGCN w/ Aug & 93.3\% & 88.3\%* & 78.6\%* & 80.5\%* \\
+        E: BiGSAGE w/ Aug & 83.3\% & 85.7\% & 90.0\% & 87.8\% \\
         \bottomrule
         \multicolumn{5}{l}{\footnotesize{*Gate-level average scores, not circuit-level.}}
     \end{tabular}
 \end{table}
 
 \paragraph{Analysis of Feature Engineering}
-The methods employed diverse feature engineering strategies. Method B used the most extensive feature set ($41$-dim), uniquely incorporating simulation statistics, which could capture dynamic properties at the cost of significant preprocessing overhead. In contrast, Methods A, C, and D relied on purely static and topological features. Method A achieved the highest F1-score with the most concise feature set ($17$-dim), suggesting that a minimal, well-chosen set of topological features was highly effective and potentially less prone to overfitting on this dataset. Method C's data-driven approach ($18$-dim) targeted known anomaly indicators (e.g., \texttt{has\_tied\_inputs}), reflecting a blend of expert knowledge and statistical analysis. Method D ($30$-dim) automated the discovery of important nodes through graph centrality metrics like PageRank, offering a scalable alternative to manual feature selection.
+The methods employed diverse feature engineering strategies. Method B used the most extensive feature set ($41$-dim), uniquely incorporating simulation statistics, which could capture dynamic properties at the cost of significant preprocessing overhead. In contrast, Methods A, C, D, and E relied on purely static and topological features. Method A achieved the highest F1-score with the most concise feature set ($17$-dim), suggesting that a minimal, well-chosen set of topological features was highly effective and potentially less prone to overfitting on this dataset. Method C's data-driven approach ($18$-dim) targeted known anomaly indicators (e.g., \texttt{has\_tied\_inputs}), reflecting a blend of expert knowledge and statistical analysis. Method D ($30$-dim) automated the discovery of important nodes through graph centrality metrics like PageRank, offering a scalable alternative to manual feature selection. Method E employed a comprehensive $21$-dimensional feature vector that strategically combined graph centrality metrics (degree centrality, betweenness centrality, clustering coefficient) with gate connectivity patterns and distance-based features, achieving a balanced approach between feature richness and computational efficiency.
 
 \paragraph{Analysis of Model Architecture}
-The architectural choices reveal different philosophies. Method A's dual-model system, which separates circuit-level ("if") and gate-level ("where") classification, proved highly effective. This decoupling likely contributed to its superior precision by requiring two distinct forms of confirmation. Methods B, C, and D employed single, unified models for node classification. Method B's dual-branch fusion and Method C's dense concatenation of intermediate layers are both powerful techniques for creating rich, multi-scale representations. Method D's hybrid of SAGEConv and GATConv layers attempted to balance neighborhood sampling with attention. The success of Method A's simpler, decoupled architecture suggests that for this problem, task-specific models may outperform a single, complex one.
+The architectural choices reveal different philosophies. Method A's dual-model system, which separates circuit-level ("if") and gate-level ("where") classification, proved highly effective. This decoupling likely contributed to its superior precision by requiring two distinct forms of confirmation. Methods B, C, D, and E employed single, unified models for node classification. Method B's dual-branch fusion and Method C's dense concatenation of intermediate layers are both powerful techniques for creating rich, multi-scale representations. Method D's hybrid of SAGEConv and GATConv layers attempted to balance neighborhood sampling with attention. Method E introduced a novel Bidirectional GraphSAGE-LSTM architecture that uniquely combines spatial graph convolution with temporal sequence modeling through LSTM layers, enabling the capture of dependencies across graph convolution layers. The success of Method A's simpler, decoupled architecture suggests that for this problem, task-specific models may outperform a single, complex one.
 
 \paragraph{Analysis of Post-Processing}
-All frameworks confirmed the criticality of post-processing in reducing raw predictions and reducing false positives. The strategies varied in complexity. Method B used the most sophisticated topology-aware filter (consistency, group size, and count), contributing to its perfect precision (100.0\%). Methods A and C used simpler Trojan gate count thresholds (15 and 20, respectively). Method C's higher threshold (20) may explain its lower precision (87.0\%) compared to Method A (95.2\%), as it is more aggressive in classifying circuits as benign, leading to more false positives among the clean circuits (3 vs. 1). Method D's strategy of dynamically optimizing the decision threshold on a validation set represents a more standard and data-driven machine learning practice, reducing the reliance on hand-tuned heuristics.
+All frameworks confirmed the criticality of post-processing to refine raw predictions and reduce false positives. The strategies varied in complexity. Method B employed the most sophisticated, topology-aware filter (consistency, group size, and count), making it theoretically robust. Methods A, C and E used simpler Trojan gate count thresholds (15 and 20, respectively). Method C's higher threshold (20) may explain its lower precision (87.0\%) compared to Method A (95.2\%), as it is more aggressive in classifying circuits as benign, leading to more false positives among the clean circuits (3 vs. 1). Method D's strategy of dynamically optimizing the decision threshold on a validation set represents a more standard and data-driven machine learning practice, reducing the reliance on hand-tuned heuristics. 
 
 \paragraph{Analysis of Imbalance Handling}
-All methods successfully addressed the severe class imbalance, which was crucial to achieve high recall. Methods B, C, and D all used variants of Focal Loss. Method C's novel `Threshold-Aware Focal Loss` and Method D's `Weighted Focal Loss` with balanced batching demonstrate advanced strategies to force the model to focus on minority-class examples. Notably, Methods A and C both achieved a perfect 100\% circuit-level recall. Method A accomplished this without a custom loss function, relying instead on extensive data augmentation and its dual-model architecture. This implies that architectural design and data volume can be as effective as a specialized loss function in overcoming class imbalance.
+All methods successfully addressed the severe class imbalance, which was crucial for achieving high recall. Methods B, C, and D all used variants of Focal Loss. Method C's novel `Threshold-Aware Focal Loss` and Method D's `Weighted Focal Loss` with balanced batching demonstrate advanced strategies to force the model to focus on minority-class examples. Method E employed a weighted Cross-Entropy loss with class weights [1.0, 50.0], directly addressing the severe 1:50 normal:Trojan ratio through explicit class weighting rather than sophisticated focal mechanisms. Notably, Methods A and C both achieved a perfect 100\% circuit-level recall. Method A accomplished this without a custom loss function, relying instead on extensive data augmentation and its dual-model architecture. This implies that architectural design and data volume can be as effective as a specialized loss function in overcoming class imbalance.
 
 \FloatBarrier
 % =======================================================================
@@ -581,11 +645,11 @@ All methods successfully addressed the severe class imbalance, which was crucial
 \section{Conclusion}
 \label{sec:conclusion}
 % (New summary conclusion)
-In this paper, we conducted a comprehensive study on detecting hardware Trojans at the gate level by developing and comparing four distinct GNN-based methodologies. Our first method (Method A) utilized a dual-model GraphSAGE architecture to decouple circuit and gate-level classification. Our second method (Method B) introduced a dual-branch GNN that fused structural BiGCN features with statistical subgraph features. Our third method (Method C) focused on a BiGCN architecture enhanced by data-driven feature engineering and a custom Threshold-Aware Focal Loss to combat severe class imbalance. Our fourth method (Method D) employed systematic data augmentation through trojan insertion combined with a BiGCN and Weighted Focal Loss.
+In this paper, we conducted a comprehensive study on detecting hardware Trojans at the gate level by developing and comparing five distinct GNN-based methodologies. Our first method (Method A) utilized a dual-model GraphSAGE architecture to decouple circuit and gate-level classification. Our second method (Method B) introduced a dual-branch GNN that fused structural BiGCN features with statistical subgraph features. Our third method (Method C) focused on a BiGCN architecture enhanced by data-driven feature engineering and a custom Threshold-Aware Focal Loss to combat severe class imbalance. Our fourth method (Method D) employed systematic data augmentation through trojan insertion combined with a BiGCN and Weighted Focal Loss. Our fifth method (Method E) introduced a novel Bidirectional GraphSAGE-LSTM architecture that combines spatial graph convolution with temporal sequence modeling, using weighted Cross-Entropy loss and comprehensive data augmentation.
 
 Our experiments, conducted on the 2025 CAD Contest dataset, demonstrate the effectiveness of GNNs for this task. The comparative analysis (Section~\ref{sec:comparative_analysis}) highlights the critical impact of choices in feature engineering, model architecture, loss function, and post-processing. Method C, for instance, achieved a perfect recall of 100\% and a final F1-Score of 93.0\% on the blind test set, validating its approach to imbalance and feature selection. The ablation studies scientifically confirmed the contribution of each component.
 
-This work not only presents four viable solutions to the HT detection problem but also provides a comparative analysis that offers valuable insights into the strengths and weaknesses of different design choices. Future work could involve creating hybrid models that combine the most effective components from each of these four approaches, or applying this methodology to a wider range of public benchmarks.
+This work not only presents five viable solutions to the HT detection problem but also provides a comparative analysis that offers valuable insights into the strengths and weaknesses of different design choices. Future work could involve creating hybrid models that combine the most effective components from each of these five approaches, or applying this methodology to a wider range of public benchmarks.
 
 \section*{Acknowledgment}
 The authors would like to thank the organizers of the 2025 CAD Contest for providing the challenging problem and dataset.
